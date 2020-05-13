@@ -1,0 +1,56 @@
+---
+title: "Investigation of Central Limit Theorem"
+author: "Keyur Nandu"
+date: "4/30/2020"
+output: pdf_document
+---
+Part 1
+
+In this project you will investigate the exponential distribution in R and compare it with the Central Limit Theorem
+
+```{r message=FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+lambda <- 0.2   #rate
+n <- 40         # sample size
+B <- 1000       # number of simulations
+
+f <- rexp(n, rate = lambda)  # given function
+
+#Performing 1000 simulations
+simulation <- replicate(B,{
+             sample(f, B, replace = TRUE)
+              
+              
+})
+
+# generating comparision table
+compare <- matrix(c(mean(simulation), 1/lambda,
+                  sd(simulation),  1/lambda,
+                  mean(apply(simulation,1,var)),var(f)),                      ncol = 3
+)
+colnames(compare) <- c("mean","sd", "var")
+rownames(compare) <- c("practical", "theoritical")
+as.table(compare)
+
+sample_means <-(apply(simulation,1,mean))
+df <- as.data.frame(sample_means)
+```
+
+According to the central limit theorem (CLT), the averages of samples follow normal distribution.
+
+This following plot shows that the distribution of the sample means almost matches the normal distribution.
+
+```{r}
+#plotting histogram for simulation using ggplot
+df %>% ggplot(aes(sample_means, ..density..)) + 
+       geom_histogram(bins = 25, color = "black", fill = "blue") + geom_density(color = "red", bw = 0.06) +
+  ggtitle("Histogram of sample means")
+```
+
+Hence as the number of obersvations increases as per CLT the data will follow a normalise curve.
+
+
