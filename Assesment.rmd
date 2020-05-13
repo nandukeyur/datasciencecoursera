@@ -1,0 +1,84 @@
+---
+title: "Assesment"
+author: "Keyur Nandu"
+date: "5/12/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+```{r message= FALSE}
+library(caret)
+library(ggplot2)
+library(rpart)
+library(randomForest)
+library(dplyr)
+```
+
+Loadind the data set and exploring it!
+```{r}
+#along with importing data we are adding NA to blank cells of csv files
+raw_train <- read.csv("data/pml-training.csv", na.strings=c("","NA"))
+raw_test <- read.csv("data/pml-testing.csv", na.strings=c("","NA"))
+
+head(raw_train)
+
+raw_train %>% ggplot(aes(classe)) + geom_bar(stat = "count", fill = "blue")
+```
+
+As there are null values and many columns in the columns we need to do some data wrangling!
+```{r}
+
+# removing columns with NA greater than 50%                            
+training <- raw_train[, which(colMeans(!is.na(raw_train)) > 0.5)]
+testing <- raw_test[,which(colMeans(!is.na(raw_train))>0.5)]
+
+#First seven columns of the dataset are not so useful we can remove them
+sam <- training[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+
+#creating data partion of training sample for modeling
+intrain <- createDataPartition(y= sam$classe, p=0.7, list = FALSE)
+
+sam_train <- sam[intrain,]
+sam_test <- sam[-intrain,]
+```
+
+#Decision Tree
+```{r}
+model_dt <- rpart(classe ~ ., data = sam_train, method = "class")
+pred_dt <- predict(model_dt,sam_test, type = "class")
+
+confusionMatrix(table(pred_dt,sam_test$class))
+```
+
+#Random Forest
+```{r}
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+fitControl <- trainControl(method = "cv",
+                           number = 5,
+                           allowParallel = TRUE)
+
+
+
+model_rf <- train(classe ~ ., method = "rf", data = sam_train, trControl =fitControl )
+
+stopCluster(cluster)
+registerDoSEQ()
+
+pred_rf <- predict(model_rf,sam_test)
+
+confusionMatrix(table(pred_rf,sam_test$class))
+```
+
+Final prediction using testing data set on random forest model as we are getting 99.25 accuracy
+```{r}
+# This will give us the prediction of the 20 variables in testing dataset
+list(predict(model_rf, testing))
+```
+
